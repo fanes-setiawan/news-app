@@ -1,88 +1,59 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:http/http.dart' as http;
+import 'package:news_app/core/theme/app_theme.dart';
+import 'package:news_app/core/theme/theme_cubit.dart';
+import 'package:news_app/features/news/data/datasources/news_remote_data_source_impl.dart';
+import 'package:news_app/features/news/data/repositories/news_repository_impl.dart';
+import 'package:news_app/features/news/domain/usecases/get_top_headlines.dart';
+import 'package:news_app/features/news/domain/usecases/get_all_news.dart';
+import 'package:news_app/features/news/presentation/bloc/news/news_bloc.dart';
+import 'package:news_app/features/news/presentation/pages/news_page.dart';
 
 void main() {
-  runApp(const MyApp());
+  final client = http.Client();
+  const apiKey = "aeb0fce6eec946fd8ea5897d41420f4f";
+
+  final remote = NewsRemoteDataSourceImpl(client: client, apiKey: apiKey);
+  final repo = NewsRepositoryImpl(remote);
+  final getTopHeadlines = GetTopHeadlines(repo);
+  final getAllNews = GetAllNews(repo);
+
+  runApp(
+    MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (_) => NewsBloc(
+            getTopHeadlines: getTopHeadlines,
+            getAllNews: getAllNews,
+          )
+            ..add(FetchTopHeadlines())
+            ..add(FetchAllNews(query: "technology")),
+        ),
+        BlocProvider(
+          create: (_) => ThemeCubit(), // 🔥 ini wajib
+        ),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+    return BlocBuilder<ThemeCubit, ThemeMode>(
+      builder: (context, themeMode) {
+        return MaterialApp(
+          title: 'News App',
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: themeMode,
+          home: const NewsPage(),
+        );
+      },
     );
   }
 }
